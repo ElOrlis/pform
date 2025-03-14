@@ -16,30 +16,6 @@ const (
 	empty     = ""
 )
 
-func NewDecoder(form url.Values) Decoder {
-	return Decoder{values: form}
-}
-
-type Decoder struct {
-	values url.Values
-}
-
-func (d Decoder) Decode(dest any) error {
-	v := reflect.ValueOf(dest)
-	if v.Kind() != reflect.Pointer {
-		return errors.New("destination is not a pointer") // Create custom error
-	}
-	v = v.Elem()
-	switch v.Kind() {
-	case reflect.Struct:
-		return d.decodeStruct(v)
-	case reflect.Map:
-		return nil
-	default:
-		return nil
-	}
-}
-
 type Unmarshaller interface {
 	UnmarshalForm(string) error
 }
@@ -196,6 +172,30 @@ func setValue(field reflect.Value, value string) error {
 	return nil
 }
 
+func NewDecoder(form url.Values) Decoder {
+	return Decoder{values: form}
+}
+
+type Decoder struct {
+	values url.Values
+}
+
+func (d Decoder) Decode(dest interface{}) error {
+	v := reflect.ValueOf(dest)
+	if v.Kind() != reflect.Pointer {
+		return errors.New("interface is not a pointer") // Create custom error
+	}
+	v = v.Elem()
+	switch v.Kind() {
+	case reflect.Struct:
+		return d.decodeStruct(v)
+	case reflect.Map:
+		return d.decodeMap(v)
+	default:
+		return errors.New("interface should be a pointer of struct or map")
+	}
+}
+
 func (d Decoder) decodeStruct(v reflect.Value) error {
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
@@ -221,5 +221,9 @@ func (d Decoder) decodeStruct(v reflect.Value) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (d Decoder) decodeMap(v reflect.Value) error {
 	return nil
 }
