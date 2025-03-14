@@ -27,7 +27,7 @@ type Decoder struct {
 func (d Decoder) Decode(dest any) error {
 	v := reflect.ValueOf(dest)
 	if v.Kind() != reflect.Pointer {
-		return nil // Create custom error
+		return errors.New("destination is not a pointer") // Create custom error
 	}
 	v = v.Elem()
 	switch v.Kind() {
@@ -140,6 +140,26 @@ func setValueFloat(field reflect.Value, v string) error {
 	return nil
 }
 
+func setValueComplex(field reflect.Value, v string) error {
+	switch field.Kind() {
+	case reflect.Complex64:
+		d, err := strconv.ParseComplex(v, 64)
+		if err != nil {
+			return err
+		}
+		field.SetComplex(d)
+	case reflect.Complex128:
+		d, err := strconv.ParseComplex(v, 128)
+		if err != nil {
+			return err
+		}
+		field.SetComplex(d)
+	default:
+		return errors.New("field is not a valid complex type")
+	}
+	return nil
+}
+
 func setValue(field reflect.Value, value string) error {
 	switch field.Kind() {
 	case reflect.String:
@@ -150,6 +170,8 @@ func setValue(field reflect.Value, value string) error {
 		return setValueInt(field, value)
 	case reflect.Float32, reflect.Float64:
 		return setValueFloat(field, value)
+	case reflect.Complex64, reflect.Complex128:
+		return setValueComplex(field, value)
 	case reflect.Bool:
 		v, err := strconv.ParseBool(value)
 		if err != nil {
@@ -157,12 +179,9 @@ func setValue(field reflect.Value, value string) error {
 		}
 		field.SetBool(v)
 	default:
-		var ptr reflect.Value
-		if field.Kind() != reflect.Ptr {
-			ptr = reflect.New(field.Type())
-		}
+		ptr := reflect.New(field.Type())
 		if !ptr.Type().Implements(reflect.TypeOf((*Unmarshaller)(nil)).Elem()) {
-			return errors.New("field is not of correct type")
+			return errors.New("field does not implement form Unmarshaller")
 		}
 		f, ok := ptr.Interface().(Unmarshaller)
 		if !ok {
@@ -193,7 +212,7 @@ func (d Decoder) decodeStruct(v reflect.Value) error {
 			if len(schema) > 1 && schema[1] == omitempty {
 				continue
 			} else if len(schema) > 1 && schema[1] == required {
-				return nil
+				return NewRequiredFieldError(schema[0])
 			}
 		}
 
