@@ -1,4 +1,4 @@
-module pf
+module pform
 
 go 1.24.0
 

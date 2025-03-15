@@ -1,4 +1,4 @@
-package pf
+package pform
 
 import (
 	"errors"
@@ -17,7 +17,7 @@ const (
 )
 
 type Unmarshaller interface {
-	UnmarshalForm(string) error
+	UnmarshalValue(string) error
 }
 
 func setValueInt(field reflect.Value, v string) error {
@@ -163,7 +163,7 @@ func setValue(field reflect.Value, value string) error {
 		if !ok {
 			return errors.New("field does not implement form Unmarshaller")
 		}
-		err := f.UnmarshalForm(value)
+		err := f.UnmarshalValue(value)
 		if err != nil {
 			return err
 		}
@@ -180,10 +180,10 @@ type Decoder struct {
 	values url.Values
 }
 
-func (d Decoder) Decode(dest interface{}) error {
+func (d Decoder) Decode(dest any) error {
 	v := reflect.ValueOf(dest)
 	if v.Kind() != reflect.Pointer {
-		return errors.New("interface is not a pointer") // Create custom error
+		return errors.New("interface is not a pointer")
 	}
 	v = v.Elem()
 	switch v.Kind() {
@@ -197,7 +197,7 @@ func (d Decoder) Decode(dest interface{}) error {
 }
 
 func (d Decoder) decodeStruct(v reflect.Value) error {
-	for i := 0; i < v.NumField(); i++ {
+	for i := range v.NumField() {
 		field := v.Field(i)
 		if !field.CanSet() {
 			continue
@@ -224,6 +224,6 @@ func (d Decoder) decodeStruct(v reflect.Value) error {
 	return nil
 }
 
-func (d Decoder) decodeMap(v reflect.Value) error {
+func (d Decoder) decodeMap(_ reflect.Value) error {
 	return nil
 }
