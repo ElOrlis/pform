@@ -2,9 +2,9 @@ package pform
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"reflect"
-	"strconv"
 	"strings"
 )
 
@@ -18,158 +18,6 @@ const (
 
 type Unmarshaller interface {
 	UnmarshalValue(string) error
-}
-
-func setValueInt(field reflect.Value, v string) error {
-	switch field.Kind() {
-	case reflect.Int:
-		d, err := strconv.ParseInt(v, 10, 0)
-		if err != nil {
-			return err
-		}
-		field.SetInt(d)
-	case reflect.Int8:
-		d, err := strconv.ParseInt(v, 10, 8)
-		if err != nil {
-			return err
-		}
-		field.SetInt(d)
-	case reflect.Int16:
-		d, err := strconv.ParseInt(v, 10, 16)
-		if err != nil {
-			return err
-		}
-		field.SetInt(d)
-	case reflect.Int32:
-		d, err := strconv.ParseInt(v, 10, 32)
-		if err != nil {
-			return err
-		}
-		field.SetInt(d)
-	case reflect.Int64:
-		d, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return err
-		}
-		field.SetInt(d)
-	default:
-		return errors.New("field is not a valid integer type")
-	}
-	return nil
-}
-
-func setValueUint(field reflect.Value, v string) error {
-	switch field.Kind() {
-	case reflect.Uint:
-		d, err := strconv.ParseUint(v, 10, 0)
-		if err != nil {
-			return err
-		}
-		field.SetUint(d)
-	case reflect.Uint8:
-		d, err := strconv.ParseUint(v, 10, 8)
-		if err != nil {
-			return err
-		}
-		field.SetUint(d)
-	case reflect.Uint16:
-		d, err := strconv.ParseUint(v, 10, 16)
-		if err != nil {
-			return err
-		}
-		field.SetUint(d)
-	case reflect.Uint32:
-		d, err := strconv.ParseUint(v, 10, 32)
-		if err != nil {
-			return err
-		}
-		field.SetUint(d)
-	case reflect.Uint64:
-		d, err := strconv.ParseUint(v, 10, 64)
-		if err != nil {
-			return err
-		}
-		field.SetUint(d)
-	default:
-		return errors.New("field is not a valid unsigned integer type")
-	}
-	return nil
-}
-
-func setValueFloat(field reflect.Value, v string) error {
-	switch field.Kind() {
-	case reflect.Float32:
-		d, err := strconv.ParseFloat(v, 32)
-		if err != nil {
-			return err
-		}
-		field.SetFloat(d)
-	case reflect.Float64:
-		d, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			return err
-		}
-		field.SetFloat(d)
-	default:
-		return errors.New("field is not a valid float type")
-	}
-	return nil
-}
-
-func setValueComplex(field reflect.Value, v string) error {
-	switch field.Kind() {
-	case reflect.Complex64:
-		d, err := strconv.ParseComplex(v, 64)
-		if err != nil {
-			return err
-		}
-		field.SetComplex(d)
-	case reflect.Complex128:
-		d, err := strconv.ParseComplex(v, 128)
-		if err != nil {
-			return err
-		}
-		field.SetComplex(d)
-	default:
-		return errors.New("field is not a valid complex type")
-	}
-	return nil
-}
-
-func setValue(field reflect.Value, value string) error {
-	switch field.Kind() {
-	case reflect.String:
-		field.SetString(value)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return setValueUint(field, value)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return setValueInt(field, value)
-	case reflect.Float32, reflect.Float64:
-		return setValueFloat(field, value)
-	case reflect.Complex64, reflect.Complex128:
-		return setValueComplex(field, value)
-	case reflect.Bool:
-		v, err := strconv.ParseBool(value)
-		if err != nil {
-			return err
-		}
-		field.SetBool(v)
-	default:
-		ptr := reflect.New(field.Type())
-		if !ptr.Type().Implements(reflect.TypeOf((*Unmarshaller)(nil)).Elem()) {
-			return errors.New("field does not implement form Unmarshaller")
-		}
-		f, ok := ptr.Interface().(Unmarshaller)
-		if !ok {
-			return errors.New("field does not implement form Unmarshaller")
-		}
-		err := f.UnmarshalValue(value)
-		if err != nil {
-			return err
-		}
-		field.Set(ptr.Elem())
-	}
-	return nil
 }
 
 func NewDecoder(form url.Values) Decoder {
@@ -192,7 +40,7 @@ func (d Decoder) Decode(dest any) error {
 	case reflect.Map:
 		return d.decodeMap(v)
 	default:
-		return errors.New("interface should be a pointer of struct or map")
+		return errors.New("interface should be a pointer to struct, or map")
 	}
 }
 
@@ -212,11 +60,11 @@ func (d Decoder) decodeStruct(v reflect.Value) error {
 			if len(schema) > 1 && schema[1] == omitempty {
 				continue
 			} else if len(schema) > 1 && schema[1] == required {
-				return NewRequiredFieldError(schema[0])
+				return newRequiredFieldError(schema[0])
 			}
 		}
 
-		err := setValue(field, value)
+		err := setValue(field, value, schema[0])
 		if err != nil {
 			return err
 		}
@@ -224,6 +72,28 @@ func (d Decoder) decodeStruct(v reflect.Value) error {
 	return nil
 }
 
-func (d Decoder) decodeMap(_ reflect.Value) error {
+func (d Decoder) decodeMap(v reflect.Value) error {
+	if v.Type().Key().Kind() != reflect.String {
+		return errors.New("map key must be string type")
+	}
+
+	if v.IsNil() {
+		v.Set(reflect.MakeMap(v.Type()))
+	}
+
+	elemType := v.Type().Elem()
+	for key, values := range d.values {
+		if len(values) == 0 {
+			continue
+		}
+
+		elem := reflect.New(elemType).Elem()
+		err := setValue(elem, values[0], key)
+		if err != nil {
+			return fmt.Errorf("error setting map value for key %q: %w", key, err)
+		}
+
+		v.SetMapIndex(reflect.ValueOf(key), elem)
+	}
 	return nil
 }
