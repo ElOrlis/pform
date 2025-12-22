@@ -21,16 +21,6 @@ func (c *CustomType) UnmarshalValue(v string) error {
 	return nil
 }
 
-// Custom type with value receiver (tests pointer-to-type handling)
-type CustomValueType struct {
-	Value string
-}
-
-func (c CustomValueType) UnmarshalValue(v string) error {
-	c.Value = "value:" + v
-	return nil
-}
-
 // Custom type that returns errors
 type CustomErrorType struct {
 	Value string
