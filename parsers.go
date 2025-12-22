@@ -40,8 +40,10 @@ func setValueInt(field reflect.Value, v, n string) error {
 			return newParseError(n, t, v, err)
 		}
 		field.SetInt(d)
+	default:
+		return newParseError(n, t, v, errors.New("value is not an integer"))
 	}
-	return newParseError(n, t, v, errors.New("value is not an integer"))
+	return nil
 }
 
 func setValueUint(field reflect.Value, v, n string) error {
@@ -77,8 +79,10 @@ func setValueUint(field reflect.Value, v, n string) error {
 			return newParseError(n, t, v, err)
 		}
 		field.SetUint(d)
+	default:
+		return newParseError(n, t, v, errors.New("value is not an unsigned integer"))
 	}
-	return newParseError(n, t, v, errors.New("value is not an unsigned integer"))
+	return nil
 }
 
 func setValueFloat(field reflect.Value, v, n string) error {
@@ -96,8 +100,10 @@ func setValueFloat(field reflect.Value, v, n string) error {
 			return newParseError(n, t, v, err)
 		}
 		field.SetFloat(d)
+	default:
+		return newParseError(n, t, v, errors.New("value is not a float"))
 	}
-	return newParseError(n, t, v, errors.New("value is not a float"))
+	return nil
 }
 
 func setValueComplex(field reflect.Value, v, n string) error {
@@ -115,8 +121,10 @@ func setValueComplex(field reflect.Value, v, n string) error {
 			return newParseError(n, t, v, err)
 		}
 		field.SetComplex(d)
+	default:
+		return newParseError(n, t, v, errors.New("value is not a complex"))
 	}
-	return newParseError(n, t, v, errors.New("value is not a complex"))
+	return nil
 }
 
 func setValue(field reflect.Value, value, name string) error {
@@ -124,6 +132,7 @@ func setValue(field reflect.Value, value, name string) error {
 	switch field.Kind() {
 	case reflect.String:
 		field.SetString(value)
+		return nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return setValueUint(field, value, name)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -138,8 +147,9 @@ func setValue(field reflect.Value, value, name string) error {
 			return newParseError(name, t, value, err)
 		}
 		field.SetBool(v)
+		return nil
 	default:
-		if reflect.PointerTo(field.Type()).Implements(reflect.TypeOf((*Unmarshaller)(nil)).Elem()) {
+		if reflect.PointerTo(field.Type()).Implements(reflect.TypeFor[Unmarshaller]()) {
 			ptr := reflect.New(field.Type())
 			unmarshaller := ptr.Interface().(Unmarshaller)
 			if err := unmarshaller.UnmarshalValue(value); err != nil {
@@ -149,9 +159,9 @@ func setValue(field reflect.Value, value, name string) error {
 			return nil
 		}
 
-		if field.Kind() == reflect.Ptr {
+		if field.Kind() == reflect.Pointer {
 			elemType := field.Type().Elem()
-			if reflect.PointerTo(elemType).Implements(reflect.TypeOf((*Unmarshaller)(nil)).Elem()) {
+			if reflect.PointerTo(elemType).Implements(reflect.TypeFor[Unmarshaller]()) {
 				if field.IsNil() {
 					field.Set(reflect.New(elemType))
 				}
