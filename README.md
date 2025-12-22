@@ -387,6 +387,15 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - Run `go vet ./...` and `staticcheck ./...` before submitting
 - Format code with `gofmt`
 
+## LLM Usage
+
+This project uses LLM assistance exclusively for:
+- **Testing** - Generating test cases and test coverage
+- **CI/CD Workflows** - Creating and maintaining GitHub Actions workflows
+- **Documentation** - Writing and improving documentation
+
+The core library code is human-written without LLM assistance.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

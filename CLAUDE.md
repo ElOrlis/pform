@@ -6,6 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 pform is a Go library for decoding `application/x-www-form-urlencoded` HTTP request bodies into Go structs or maps. It uses struct tags to map form fields and supports custom type unmarshalling.
 
+## LLM Usage Scope
+
+LLM assistance for this project is limited to:
+- **Testing** - Writing and improving test cases
+- **CI/CD Maintenance** - Maintaining GitHub Actions workflows
+- **Documentation** - Writing and updating documentation
+
+Do not use LLM to modify the core library code (`decode.go`, `parsers.go`, `error.go`).
+
 ## Commands
 
 ```bash
